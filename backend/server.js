@@ -44,26 +44,39 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-const allowedOrigins = process.env.FRONTEND_URL 
-  ? process.env.FRONTEND_URL.split(',') 
-  : ['http://localhost:5173', 'http://localhost:3000'];
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:3000')
+  .split(',')
+  .map(url => url.replace(/\/$/, '')); // Normalize: remove trailing slash
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // If no origin (like mobile apps or curl), allow it
+    if (!origin) return callback(null, true);
+    
+    // Normalize incoming origin
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    
+    if (allowedOrigins.indexOf(normalizedOrigin) !== -1 || !process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      console.error(`🚫 CORS Blocked: Origin '${origin}' not in allowed list:`, allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
 const io = new Server(httpServer, {
-  cors: {
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
-  }
+  cors: corsOptions
 });
 
 // Make io accessible in routes
 app.set('io', io);
 
 // Middleware
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
