@@ -71,8 +71,34 @@ smart-food-redistribution/
 
 ## 🌐 Deployment
 
-- **Frontend**: Recommended to deploy on [Vercel](https://vercel.com).
-- **Backend**: Recommended to deploy on [Render](https://render.com) or [Railway](https://railway.app).
+This project is structured for easy deployment on **Vercel** (Frontend) and **Render** (Backend).
+
+### 1. Backend Deployment (Render)
+
+1. **New Web Service**: Connect your GitHub repository.
+2. **Settings**:
+   - **Root Directory**: `backend`
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+3. **Environment Variables**:
+   - `JWT_SECRET`: A long random string.
+   - `FRONTEND_URL`: Your Vercel app URL (e.g., `https://your-app.vercel.app`).
+   - `PORT`: `3001` (Render usually sets this automatically).
+
+### 2. Frontend Deployment (Vercel)
+
+1. **New Project**: Connect your GitHub repository.
+2. **Settings**:
+   - **Root Directory**: `frontend` (Or keep root and set **Framework Preset** to Vite).
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. **Environment Variables**:
+   - `VITE_API_URL`: Your Render backend URL + `/api` (e.g., `https://backend.onrender.com/api`).
+   - `VITE_SOCKET_URL`: Your Render backend URL (e.g., `https://backend.onrender.com`).
+
+> [!TIP]
+> **Real-time Notifications**: Ensure the `VITE_SOCKET_URL` does NOT include the `/api` suffix.
 
 ## 📄 License
 
