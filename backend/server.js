@@ -28,62 +28,58 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
 
-// Security and Performance Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: false, // Required for serving images from different domains
-}));
-app.use(compression());
-app.use(morgan('combined'));
-
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/', limiter);
-
+// 1. CORS Configuration (MUST BE FIRST)
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:3000')
   .split(',')
-  .map(url => url.replace(/\/$/, '').trim()); // Normalize and trim
-
-console.log('✅ CORS: Allowed origins initialized:', allowedOrigins);
+  .map(url => url.replace(/\/$/, '').trim());
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Standard allowing for local dev and mobile apps (no origin)
     if (!origin) return callback(null, true);
-    
-    // Normalize incoming origin
     const normalizedOrigin = origin.replace(/\/$/, '').trim();
-    
-    // Check match or if it's a Vercel deployment of the same app name
     const matches = allowedOrigins.indexOf(normalizedOrigin) !== -1;
     const isVercel = normalizedOrigin.endsWith('.vercel.app');
     
     if (matches || isVercel || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
-      console.warn(`⚠️ CORS Check: Origin '${origin}' not explicitly in list. Allowing for testing.`);
-      // Still allow but log so we know why headers might be missing if it still fails
-      callback(null, true); 
+      callback(null, true); // Allow any origin for now to ensure registration bypasses the block
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 const io = new Server(httpServer, {
   cors: corsOptions
 });
 
+// Apply CORS globally before anything else
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Handle all preflight requests explicitly
+
+// 2. Security and Performance Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
+app.use(compression());
+app.use(morgan('combined'));
+
+// 3. Rate Limiting (Applied to /api/ but after CORS)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', limiter);
+
 // Make io accessible in routes
 app.set('io', io);
 
-// Middleware
-app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
